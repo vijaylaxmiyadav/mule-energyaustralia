@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<sub-flow name="api-exp-music-festivalSub_Flow" doc:id="73aacaf0-3f67-4e42-ab9e-83147a32b200" >
+		<logger level="DEBUG" doc:name="Logger" doc:id="947fb0d7-e0e7-47dd-a272-76f7b2bfbec4" message="API|api-exp-music-festivalSub_Flow|Call EnergyAsutralai Web Service"/>
+		<try doc:name="Try" doc:id="bc8b3c17-df24-4f4d-beb2-fbfadee11210" >
+			<http:request method="GET" doc:name="HTTP Request To EnergyAustralia" doc:id="750b227b-00fc-4dda-8857-328b427686db" config-ref="HTTP_Request_configuration" path="${https.energyaustralia.path}" />
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="93272e7b-a167-4f2d-9530-11113b486c78" type="ANY">
+					<set-payload value="Internal Error, please try after sometime." doc:name="Set Payload" doc:id="05e74279-ba88-45ac-accd-e4edba599763" />
+					<set-variable value="500" doc:name="Set Variable" doc:id="5255f947-b829-4a6c-980a-e53ea6658a11" variableName="httpStatus "/>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<ee:transform doc:name="Transform Message" doc:id="ae99c870-9af6-44a4-9e80-e6a9ad74c0f7" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+
+fun getArray(x) = (flatten(x.bands) distinctBy (value) -> { "unique" : value.recordLabel }) map $.recordLabel 
+
+---
+getArray(payload) map ((item, index) -> {
+   recordLabel: (item) ,
+   bands: flatten(payload.bands) filter ((a1, index) -> a1.recordLabel == item)     map ((a2, index) -> {name: a2.name,
+
+       Festival: payload map ((item, index) ->if(item.bands.name contains  a2.name ) item.name else "Not Found" 
+ ) filter $ != "Not Found" orderBy $
+
+     }
+    )
+
+    })
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="DEBUG" doc:name="Logger" doc:id="2b3116d4-c196-4306-893f-c340ee15ec41" message="API|api-exp-music-festivalSub_Flow|Response"/>
+	</sub-flow>
+</mule>
